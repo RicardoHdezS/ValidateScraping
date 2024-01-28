@@ -1,0 +1,8 @@
+.scrapy
+.env
+.idea
+build
+dbs
+eggs
+project.*
+logs
