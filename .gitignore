@@ -6,5 +6,5 @@ dbs
 eggs
 project.*
 logs
-^ws_\d+_
+ws_*.py
 gen_scrapy.txt
