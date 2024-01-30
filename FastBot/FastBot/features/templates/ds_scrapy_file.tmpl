@@ -132,7 +132,7 @@ class $classname(Spider):
                     )
             else:
                 print(f"--------------- Revisar selector de Secciones {self.item['news_taxonomy_name']} ---------------")
-                CloseSpider(reason='Secciones con Error')
+                input()
         else:
             print(f"--------------- Error de status {status_code} en {self.item['news_taxonomy_name']} ---------------")
 
@@ -163,7 +163,7 @@ class $classname(Spider):
                     )
             else:
                 print(f"--------------- Revisar selector de Notas en {response.url} ---------------")
-                CloseSpider(reason='Notas con Error')
+                input()
         else:
             print(f"--------------- Error de status {status_code} en {response.url} ---------------")
 
@@ -206,14 +206,14 @@ class $classname(Spider):
                     print("** ** ** " * 10)
                     pprint.pprint(self.item)
                     print("** ** ** " * 10)
-                    CloseSpider(reason='Error de Titulo')
+                    input()
 
                 if self.item['news_content'] == '':
                     print(f"--------------- Revisar selector de Contenido en {response.url} ---------------")
                     print("** ** ** " * 10)
                     pprint.pprint(self.item)
                     print("** ** ** " * 10)
-                    CloseSpider(reason='Error de Contenido')
+                    input()
 
                 if self.item['news_author'] == '':
                     self.item['news_author'] = 'Redaccion'
