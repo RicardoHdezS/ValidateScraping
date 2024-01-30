@@ -86,11 +86,11 @@ class $classname(Spider):
 
     def handle_error(self, failure):
         if failure.check(TimeoutError):
-            print(f"--------------- Error de Timeout al acceder a {failure.request.url}---------------")
+            print(f"--------------- Error de Timeout al acceder a {failure.request.url} ---------------")
             CloseSpider(reason='Error de Timeout')
 
         elif failure.check(DNSLookupError):
-            print(f"--------------- Error de DNS al acceder a {failure.request.url}---------------")
+            print(f"--------------- Error de DNS al acceder a {failure.request.url} ---------------")
             CloseSpider(reason='Error de DNS')
 
         else:
@@ -121,7 +121,7 @@ class $classname(Spider):
             if len(all_sections) > 0:
                 print("Secciones encontradas")
                 for index, link in enumerate(all_sections, start=1):
-                    print(f"--------------- Seccion {index}: {link.url}---------------")
+                    print(f"--------------- Seccion {index}: {link.url} ---------------")
                     yield Request(
                         url=link.url,
                         callback=self.get_web_notes,
@@ -131,9 +131,10 @@ class $classname(Spider):
                         }
                     )
             else:
-                print(f"--------------- Revisar selector de Secciones {self.item['news_taxonomy_name']}---------------")
+                print(f"--------------- Revisar selector de Secciones {self.item['news_taxonomy_name']} ---------------")
+                CloseSpider(reason='Secciones con Error')
         else:
-            print(f"--------------- Error de status {status_code} en {self.item['news_taxonomy_name']}---------------")
+            print(f"--------------- Error de status {status_code} en {self.item['news_taxonomy_name']} ---------------")
 
     def get_web_notes(self, response):
         status_code = response.status
@@ -150,7 +151,7 @@ class $classname(Spider):
             if len(all_notes) > 0:
                 print("Notas encontradas")
                 for index, note in enumerate(all_notes, start=1):
-                    print(f"--------------- Nota {index}: {note.url}---------------")
+                    print(f"--------------- Nota {index}: {note.url} ---------------")
                     self.stop_flag = False
                     yield Request(
                         url=note.url,
@@ -161,9 +162,10 @@ class $classname(Spider):
                         }
                     )
             else:
-                print(f"--------------- Revisar selector de Notas en {response.url}---------------")
+                print(f"--------------- Revisar selector de Notas en {response.url} ---------------")
+                CloseSpider(reason='Notas con Error')
         else:
-            print(f"--------------- Error de status {status_code} en {response.url}---------------")
+            print(f"--------------- Error de status {status_code} en {response.url} ---------------")
 
     def validate_web_note(self, response):
         status_code = response.status
@@ -200,10 +202,18 @@ class $classname(Spider):
                 self.item['db_update_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
 
                 if self.item['news_head_title'] == '':
-                    print(f"--------------- Revisar selector de Titulo en {response.url}---------------")
+                    print(f"--------------- Revisar selector de Titulo en {response.url} ---------------")
+                    print("** ** ** " * 10)
+                    pprint.pprint(self.item)
+                    print("** ** ** " * 10)
+                    CloseSpider(reason='Error de Titulo')
 
                 if self.item['news_content'] == '':
-                    print(f"--------------- Revisar selector de Contenido en {response.url}---------------")
+                    print(f"--------------- Revisar selector de Contenido en {response.url} ---------------")
+                    print("** ** ** " * 10)
+                    pprint.pprint(self.item)
+                    print("** ** ** " * 10)
+                    CloseSpider(reason='Error de Contenido
 
                 if self.item['news_author'] == '':
                     self.item['news_author'] = 'Redaccion'
@@ -214,4 +224,4 @@ class $classname(Spider):
 
 
         else:
-            print(f"--------------- Error de status {status_code} en {response.url}---------------")
+            print(f"--------------- Error de status {status_code} en {response.url} ---------------")
