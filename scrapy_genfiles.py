@@ -144,7 +144,6 @@ try:
         json_data = json.dumps(data, ensure_ascii=False)
 
         command = f"scrapy genspider -t ds_scrapy_file {element.scraper_name} {element.scraper_start_urls} '{json_data}'"
-        print(command)
         scrapy_commands.append(command)
 
     scrapy_commands = list(set(scrapy_commands))
