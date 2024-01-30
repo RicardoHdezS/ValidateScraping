@@ -102,7 +102,7 @@ try:
     session.close()
 
     scrapy_commands = []
-    path_spiders = f"{os.getenv("SCRAPERS_SPIDERS_PATH")}/gen_scrapy.txt"
+    path_spiders = f"{os.getenv('SCRAPERS_SPIDERS_PATH')}/gen_scrapy.txt"
 
     for element in result:
 
