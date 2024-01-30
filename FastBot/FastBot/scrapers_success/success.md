@@ -1,0 +1,1 @@
+# Solo agregar scrapers que lleguen a fallar

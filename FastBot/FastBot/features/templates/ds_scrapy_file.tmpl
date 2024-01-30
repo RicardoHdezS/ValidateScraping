@@ -1,0 +1,217 @@
+from typing import Iterable
+
+from ..helper import get_content_xpath, parse_format_date
+from scrapy.linkextractors import LinkExtractor
+
+from ..db.indexer import ScrapersTemplate
+from ..items import FastbotItem
+from scrapy.http import Request
+from datetime import datetime
+from scrapy import Spider
+from twisted.internet.error import DNSLookupError, TimeoutError
+from scrapy.exceptions import CloseSpider
+import pprint
+
+"""
+---------------- Glosario de Terminos y explicacion de error ----------------
+El error radica en base a la siguiente Taxonomia: $scraper_description_errors_taxonomy
+La descripcion del error es: $scraper_description_errors_description
+NOTA: El scraper puede contener mas de un error a partir de la solucion del que se indica,
+si es necesario, validar todo el sitio.
+
+Temporalidad:
+Este Web Scraper se ejecuta: $scraper_frequency_description
+
+Tabla de Temporalidades:
+-------------------------------------------
+| ID  | Cron           | Descripcion      |
+| --- | -------------- | ---------------- |
+| 1   | `*/1 * * * *`  | Cada 1 minuto    |
+| 2   | `*/5 * * * *`  | Cada 5 minutos   |
+| 3   | `*/10 * * * *` | Cada 10 minutos  |
+| 4   | `*/30 * * * *` | Cada 30 minutos  |
+| 5   | `0 */1 * * *`  | Cada 1 hora      |
+| 6   | `0 */3 * * *`  | Cada 3 horas     |
+| 7   | `0 0 */1 * *`  | Cada 24 horas    |
+| 8   | `0 0 */2 * *`  | Cada 48 horas    |
+| 9   | `*/15 * * * *` | Cada 15 minutos  |
+| 10  | `*/20 * * * *` | Cada 20 minutos  |
+| 11  | `*/45 * * * *` | Cada 45 minutos  |
+| 12  | `0 */2 * * *`  | Cada 2 horas     |
+| 13  | `0 */4 * * *`  | Cada 4 horas     |
+| 14  | `0 */6 * * *`  | Cada 6 horas     |
+| 15  | `0 */12 * * *` | Cada 12 horas    |
+| 16  | `0 */8 * * *`  | Cada 8 horas     |
+-------------------------------------------
+
+Si se desea cambiar la temporalidad, dentro de la variable cron_execution_id, poner el nuevo valor
+
+Cuando termines de validar el scraper, mueve el archivo al directorio correspindinte:
+scrapers_failed: Si el scraper no funciona
+scrapers_success: Si el scraper funciona
+
+NOTA: El scraper se subira automaticamente a produccion, si el scraper no funciona, se vera reflejado en el dashboard
+"""
+
+
+class $classname(Spider):
+
+    name = "$scraper_name"
+    item = FastbotItem()
+    item['identifier_scraping'] = 'web_scraping'
+
+    allowed_domains = ["$domain"]
+    start_urls = ["$scraper_start_urls"]
+    sections = """$scraper_selector_sections"""  # Secciones del sitio
+    web_notes = """$scraper_selector_notes"""  # Notas del sitio
+    publication_date = """$scraper_selector_publish_date"""  # Fecha publicacion nota
+    modified_date = """$scraper_selector_modified_date"""  # Fecha actualizacion nota
+    is_utc = $scraper_is_utc  # Si la fecha esta en UTC
+    is_other_format = $scraper_is_other_format  # Si la fecha esta en otro formato
+    str_format = """$scraper_str_format"""  # Formato de la fecha
+    is_json = $scraper_is_json  # Si la fecha esta en un JSON
+    web_note_title = """$scraper_selector_title"""  # Titulo de la nota
+    web_note_author = """$scraper_selector_author"""  # Autor de la nota
+    web_note_content = """$scraper_selector_content"""  # Contenido de la nota
+    web_note_attr_titles = """$scraper_attrs_titles"""  # Atributos de los titulos
+    web_note_remove_elements = """$scraper_selector_remove_elements"""  # Elementos a remover
+    regex_deny_sections = """$scraper_regex_deny_sections"""  # Expresion regular para denegar secciones
+    cron_execution_id = $scraper_frequency  # ID de la temporalidad
+
+    item["news_cve_medio"] = $scraper_medium_id  # Clave del medio
+    item["news_media_id"] = $scraper_id  # Numero de Scraper
+    item["news_taxonomy_name"] = """$medium_name"""  # Nombre del medio
+
+    web_note_attr_titles = web_note_attr_titles.split(',') if 'None' else None
+
+    def handle_error(self, failure):
+        if failure.check(TimeoutError):
+            print(f"--------------- Error de Timeout al acceder a {failure.request.url}---------------")
+            CloseSpider(reason='Error de Timeout')
+
+        elif failure.check(DNSLookupError):
+            print(f"--------------- Error de DNS al acceder a {failure.request.url}---------------")
+            CloseSpider(reason='Error de DNS')
+
+        else:
+            print(f"--------------- Error al acceder a {failure.request.url}: {repr(failure)}---------------")
+            CloseSpider(reason='Error desconocido')
+
+    def start_requests(self) -> Iterable[Request]:
+
+        yield Request(
+            url=self.start_urls[0],
+            callback=self.parse,
+            errback=self.handle_error,
+        )
+
+    def parse(self, response, **kwargs):
+        status_code = response.status
+        if status_code == 200:
+            get_all_sections = LinkExtractor(
+                restrict_xpaths = self.sections,
+                allow = self.allowed_domains,
+                deny=r'{}'.format(self.regex_deny_sections),
+                tags=('a'),
+                unique=True
+            )
+
+            all_sections = set(get_all_sections.extract_links(response))
+
+            if len(all_sections) > 0:
+                print("Secciones encontradas")
+                for index, link in enumerate(all_sections, start=1):
+                    print(f"--------------- Seccion {index}: {link.url}---------------")
+                    yield Request(
+                        url=link.url,
+                        callback=self.get_web_notes,
+                        errback=self.handle_error,
+                        meta={
+                            'section': link.url
+                        }
+                    )
+            else:
+                print(f"--------------- Revisar selector de Secciones {self.item['news_taxonomy_name']}---------------")
+        else:
+            print(f"--------------- Error de status {status_code} en {self.item['news_taxonomy_name']}---------------")
+
+    def get_web_notes(self, response):
+        status_code = response.status
+        if status_code == 200:
+
+            get_all_notes = LinkExtractor(
+                restrict_xpaths=self.web_notes,
+                tags=('a'),
+                unique=True
+            )
+
+            all_notes = set(get_all_notes.extract_links(response))
+
+            if len(all_notes) > 0:
+                print("Notas encontradas")
+                for index, note in enumerate(all_notes, start=1):
+                    print(f"--------------- Nota {index}: {note.url}---------------")
+                    self.stop_flag = False
+                    yield Request(
+                        url=note.url,
+                        callback=self.validate_web_note,
+                        errback=self.handle_error,
+                        meta={
+                            'section': response.url
+                        }
+                    )
+            else:
+                print(f"--------------- Revisar selector de Notas en {response.url}---------------")
+        else:
+            print(f"--------------- Error de status {status_code} en {response.url}---------------")
+
+    def validate_web_note(self, response):
+        status_code = response.status
+        if status_code == 200:
+            self.stop_flag = False
+            (valid,
+             self.item['news_publication_date'],
+             self.item['news_modified_date']) = parse_format_date(
+                response=response,
+                publish=self.publication_date,
+                modified=self.modified_date,
+                UTC=self.is_utc,
+                JSON=self.is_json,
+                STR=self.is_other_format,
+                str_format=self.str_format
+            )
+
+            if valid:
+
+                today = datetime.now()
+                self.item['news_head_title'] = get_content_xpath(response, self.web_note_title)
+                self.item['news_author'] = get_content_xpath(response, self.web_note_author)
+                self.item['news_content'] = get_content_xpath(
+                    response=response,
+                    selector=self.web_note_content,
+                    web_note_content=True,
+                    web_note_attr_titles=self.web_note_attr_titles,
+                    web_note_remove_elements=self.web_note_remove_elements
+                )
+                self.item['news_section'] = response.meta['section']
+                self.item['news_url'] = response.url
+
+                self.item['db_insert_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
+                self.item['db_update_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                if self.item['news_head_title'] == '':
+                    print(f"--------------- Revisar selector de Titulo en {response.url}---------------")
+
+                if self.item['news_content'] == '':
+                    print(f"--------------- Revisar selector de Contenido en {response.url}---------------")
+
+                if self.item['news_author'] == '':
+                    self.item['news_author'] = 'Redaccion'
+
+                print("** ** ** " * 10)
+                pprint.pprint(self.item)
+                print("** ** ** " * 10)
+
+
+        else:
+            print(f"--------------- Error de status {status_code} en {response.url}---------------")
