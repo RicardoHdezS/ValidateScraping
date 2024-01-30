@@ -6,3 +6,5 @@ dbs
 eggs
 project.*
 logs
+^ws_\d+_
+gen_scrapy.txt
