@@ -1,6 +1,5 @@
 .scrapy
 .env
-.idea
 build
 dbs
 eggs
