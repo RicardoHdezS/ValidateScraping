@@ -1,0 +1,1 @@
+# Solo agregar scrapers que dominio este en venta o no se pueda acceder

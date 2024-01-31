@@ -1,0 +1,1 @@
+# Solo agregar scrapers que sean una seccion de un sitio completo

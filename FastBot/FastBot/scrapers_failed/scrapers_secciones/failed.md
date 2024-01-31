@@ -1,0 +1,1 @@
+# Solo agregar scrapers que no funcionen al extraer el selector de secciones

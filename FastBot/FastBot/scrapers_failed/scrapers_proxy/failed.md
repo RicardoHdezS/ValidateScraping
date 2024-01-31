@@ -1,0 +1,1 @@
+# Solo agregar scrapers que se requiera el uso de proxy
