@@ -13,7 +13,11 @@ from scrapy.exceptions import CloseSpider
 import pprint
 
 """
----------------- Glosario de Terminos y explicacion de error ----------------
+---------------- Glosario de Terminos y explicacion de error ------
+
+Para ejecutar el scraper, poner en la terminal el comando: scrapy crawl $scraper_name
+Recuerda estar dentro del directorio de scrapers: FastBot/FastBot/spiders
+
 El error radica en base a la siguiente Taxonomia: $scraper_description_errors_taxonomy
 La descripcion del error es: $scraper_description_errors_description
 NOTA: El scraper puede contener mas de un error a partir de la solucion del que se indica,
@@ -25,7 +29,7 @@ Este Web Scraper se ejecuta: $scraper_frequency_description
 Tabla de Temporalidades:
 -------------------------------------------
 | ID  | Cron           | Descripcion      |
-| --- | -------------- | ---------------- |
+| --- | -------------- | ------ |
 | 1   | `*/1 * * * *`  | Cada 1 minuto    |
 | 2   | `*/5 * * * *`  | Cada 5 minutos   |
 | 3   | `*/10 * * * *` | Cada 10 minutos  |
@@ -86,11 +90,11 @@ class $classname(Spider):
 
     def handle_error(self, failure):
         if failure.check(TimeoutError):
-            print(f"--------------- Error de Timeout al acceder a {failure.request.url} ---------------")
+            print(f"--------------- Error de Timeout al acceder a {failure.request.url} -----")
             CloseSpider(reason='Error de Timeout')
 
         elif failure.check(DNSLookupError):
-            print(f"--------------- Error de DNS al acceder a {failure.request.url} ---------------")
+            print(f"--------------- Error de DNS al acceder a {failure.request.url} -----")
             CloseSpider(reason='Error de DNS')
 
         else:
@@ -111,7 +115,6 @@ class $classname(Spider):
             get_all_sections = LinkExtractor(
                 restrict_xpaths = self.sections,
                 allow = self.allowed_domains,
-                deny=r'{}'.format(self.regex_deny_sections),
                 tags=('a'),
                 unique=True
             )
@@ -121,20 +124,23 @@ class $classname(Spider):
             if len(all_sections) > 0:
                 print("Secciones encontradas")
                 for index, link in enumerate(all_sections, start=1):
-                    print(f"--------------- Seccion {index}: {link.url} ---------------")
-                    yield Request(
-                        url=link.url,
-                        callback=self.get_web_notes,
-                        errback=self.handle_error,
-                        meta={
-                            'section': link.url
-                        }
-                    )
+                    print(f"--------------- Seccion {index}: {link.url} -----")
+                    if re.search(link.url, self.regex_deny_sections):
+                        print(f"--------------- Seccion denegada {link.url} -----")
+                    else:
+                        yield Request(
+                            url=link.url,
+                            callback=self.get_web_notes,
+                            errback=self.handle_error,
+                            meta={
+                                'section': link.url
+                            }
+                        )
             else:
-                print(f"--------------- Revisar selector de Secciones {self.item['news_taxonomy_name']} ---------------")
+                print(f"--------------- Revisar selector de Secciones {response.url} -----")
                 input()
         else:
-            print(f"--------------- Error de status {status_code} en {self.item['news_taxonomy_name']} ---------------")
+            print(f"--------------- Error de status {status_code} en {response.url} -----")
 
     def get_web_notes(self, response):
         status_code = response.status
@@ -151,7 +157,7 @@ class $classname(Spider):
             if len(all_notes) > 0:
                 print("Notas encontradas")
                 for index, note in enumerate(all_notes, start=1):
-                    print(f"--------------- Nota {index}: {note.url} ---------------")
+                    print(f"--------------- Nota {index}: {note.url} -----")
                     self.stop_flag = False
                     yield Request(
                         url=note.url,
@@ -162,66 +168,77 @@ class $classname(Spider):
                         }
                     )
             else:
-                print(f"--------------- Revisar selector de Notas en {response.url} ---------------")
+                print(f"----- Revisar selector de Notas en {response.url} -----")
                 input()
         else:
-            print(f"--------------- Error de status {status_code} en {response.url} ---------------")
+            print(f"----- Error de status {status_code} en {response.url} -----")
 
     def validate_web_note(self, response):
         status_code = response.status
         if status_code == 200:
-            self.stop_flag = False
-            (valid,
-             self.item['news_publication_date'],
-             self.item['news_modified_date']) = parse_format_date(
-                response=response,
-                publish=self.publication_date,
-                modified=self.modified_date,
-                UTC=self.is_utc,
-                JSON=self.is_json,
-                STR=self.is_other_format,
-                str_format=self.str_format
-            )
 
-            if valid:
+            publication_date_vars = get_content_xpath(response, self.publication_date)
+            modified_date_vars = get_content_xpath(response, self.modified_date)
 
-                today = datetime.now()
-                self.item['news_head_title'] = get_content_xpath(response, self.web_note_title)
-                self.item['news_author'] = get_content_xpath(response, self.web_note_author)
-                self.item['news_content'] = get_content_xpath(
+            if publication_date_vars != '':
+                (valid,
+                 self.item['news_publication_date'],
+                 self.item['news_modified_date']) = parse_format_date(
                     response=response,
-                    selector=self.web_note_content,
-                    web_note_content=True,
-                    web_note_attr_titles=self.web_note_attr_titles,
-                    web_note_remove_elements=self.web_note_remove_elements
+                    publish_date=publication_date_vars,
+                    modified_date=modified_date_vars,
+                    UTC=self.is_utc,
+                    JSON=self.is_json,
+                    STR=self.is_other_format,
+                    str_format=self.str_format
                 )
-                self.item['news_section'] = response.meta['section']
-                self.item['news_url'] = response.url
 
-                self.item['db_insert_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
-                self.item['db_update_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
+                if valid:
 
-                if self.item['news_head_title'] == '':
-                    print(f"--------------- Revisar selector de Titulo en {response.url} ---------------")
+                    today = datetime.now()
+                    self.item['news_head_title'] = get_content_xpath(response, self.web_note_title)
+                    self.item['news_author'] = get_content_xpath(response, self.web_note_author)
+                    self.item['news_content'] = get_content_xpath(
+                        response=response,
+                        selector=self.web_note_content,
+                        web_note_content=True,
+                        web_note_attr_titles=self.web_note_attr_titles,
+                        web_note_remove_elements=self.web_note_remove_elements
+                    )
+                    self.item['news_section'] = response.meta['section']
+                    self.item['news_url'] = response.url
+
+                    self.item['db_insert_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    self.item['db_update_date'] = today.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    if self.item['news_head_title'] == '':
+                        print(f"----- Revisar selector de Titulo en {response.url} -----")
+                        print("** ** ** " * 10)
+                        pprint.pprint(self.item)
+                        print("** ** ** " * 10)
+                        input()
+
+                    if self.item['news_content'] == '':
+                        print(f"----- Revisar selector de Contenido en {response.url} -----")
+                        print("** ** ** " * 10)
+                        pprint.pprint(self.item)
+                        print("** ** ** " * 10)
+                        input()
+
+                    if self.item['news_author'] == '':
+                        self.item['news_author'] = 'Redaccion'
+
                     print("** ** ** " * 10)
                     pprint.pprint(self.item)
                     print("** ** ** " * 10)
-                    input()
 
-                if self.item['news_content'] == '':
-                    print(f"--------------- Revisar selector de Contenido en {response.url} ---------------")
-                    print("** ** ** " * 10)
-                    pprint.pprint(self.item)
-                    print("** ** ** " * 10)
-                    input()
-
-                if self.item['news_author'] == '':
-                    self.item['news_author'] = 'Redaccion'
-
-                print("** ** ** " * 10)
-                pprint.pprint(self.item)
-                print("** ** ** " * 10)
+                else:
+                    print(f"----- Revisar selector de Fecha en {response.url} -----")
+                        print("** ** ** " * 10)
+                        pprint.pprint(self.item)
+                        print("** ** ** " * 10)
+                        input()
 
 
         else:
-            print(f"--------------- Error de status {status_code} en {response.url} ---------------")
+            print(f"----- Error de status {status_code} en {response.url} -----")
