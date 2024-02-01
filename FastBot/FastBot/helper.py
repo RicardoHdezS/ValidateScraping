@@ -78,7 +78,7 @@ def remove_duplicates(values):
             seen.add(value)
     return output
 
-def parse_format_date(response, publish, modified, UTC, JSON, STR, str_format):
+def parse_format_date(response, publish_date, modified_date, UTC, JSON, STR, str_format):
 
     settings = {
         'TO_TIMEZONE': 'America/Mexico_City',
@@ -93,9 +93,6 @@ def parse_format_date(response, publish, modified, UTC, JSON, STR, str_format):
         if UTC:
             settings['TIMEZONE'] = 'UTC'
 
-        publish_date = get_content_xpath(response, publish)
-        modified_date = get_content_xpath(response, modified)
-
         if publish_date is None:
             print("Error al obtener el contenido xpath")
             return False, publish_date, modified_date
@@ -109,7 +106,7 @@ def parse_format_date(response, publish, modified, UTC, JSON, STR, str_format):
 
 def validate_date(web_note_date):
 
-    min_available_range = datetime.now() - timedelta(days=3)
+    min_available_range = datetime.now() - timedelta(days=1)
     min_available_range = min_available_range.replace(hour=0, minute=0, second=0, microsecond=0)
     max_available_range = datetime.combine(datetime.now(), datetime.max.time())
 
