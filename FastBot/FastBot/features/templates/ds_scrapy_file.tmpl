@@ -11,6 +11,7 @@ from scrapy import Spider
 from twisted.internet.error import DNSLookupError, TimeoutError
 from scrapy.exceptions import CloseSpider
 import pprint
+import re
 
 """
 ---------------- Glosario de Terminos y explicacion de error ------
@@ -234,10 +235,10 @@ class $classname(Spider):
 
                 else:
                     print(f"----- Revisar selector de Fecha en {response.url} -----")
-                        print("** ** ** " * 10)
-                        pprint.pprint(self.item)
-                        print("** ** ** " * 10)
-                        input()
+                    print("** ** ** " * 10)
+                    pprint.pprint(self.item)
+                    print("** ** ** " * 10)
+                    input()
 
 
         else:
