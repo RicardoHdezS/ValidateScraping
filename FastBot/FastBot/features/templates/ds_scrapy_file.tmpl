@@ -82,6 +82,7 @@ class $classname(Spider):
     web_note_remove_elements = """$scraper_selector_remove_elements"""  # Elementos a remover
     regex_deny_sections = """$scraper_regex_deny_sections"""  # Expresion regular para denegar secciones
     cron_execution_id = $scraper_frequency  # ID de la temporalidad
+    regex_deny_web_notes = """None"""
 
     item["news_cve_medio"] = $scraper_medium_id  # Clave del medio
     item["news_media_id"] = $scraper_id  # Numero de Scraper
@@ -113,12 +114,21 @@ class $classname(Spider):
     def parse(self, response, **kwargs):
         status_code = response.status
         if status_code == 200:
-            get_all_sections = LinkExtractor(
-                restrict_xpaths = self.sections,
-                allow = self.allowed_domains,
-                tags=('a'),
-                unique=True
-            )
+            if 'None' in self.regex_deny_sections:
+                get_all_sections = LinkExtractor(
+                    restrict_xpaths = self.sections,
+                    allow=self.allowed_domains,
+                    tags=('a'),
+                    unique=True
+                )
+            else:
+                get_all_sections = LinkExtractor(
+                    restrict_xpaths=self.sections,
+                    allow=self.allowed_domains,
+                    tags=('a'),
+                    deny=r'{}'.format(self.regex_deny_sections),
+                    unique=True
+                )
 
             all_sections = set(get_all_sections.extract_links(response))
 
@@ -146,12 +156,19 @@ class $classname(Spider):
     def get_web_notes(self, response):
         status_code = response.status
         if status_code == 200:
-
-            get_all_notes = LinkExtractor(
-                restrict_xpaths=self.web_notes,
-                tags=('a'),
-                unique=True
-            )
+            if 'None' in self.regex_deny_web_notes:
+                get_all_notes = LinkExtractor(
+                    restrict_xpaths=self.web_notes,
+                    tags=('a'),
+                    unique=True
+                )
+            else:
+                get_all_notes = LinkExtractor(
+                    restrict_xpaths=self.web_notes,
+                    tags=('a'),
+                    deny=r'{}'.format(self.regex_deny_web_notes),
+                    unique=True
+                )
 
             all_notes = set(get_all_notes.extract_links(response))
 
@@ -233,12 +250,12 @@ class $classname(Spider):
                     pprint.pprint(self.item)
                     print("** ** ** " * 10)
 
-                else:
-                    print(f"----- Revisar selector de Fecha en {response.url} -----")
-                    print("** ** ** " * 10)
-                    pprint.pprint(self.item)
-                    print("** ** ** " * 10)
-                    input()
+            else:
+                print(f"----- Revisar selector de Fecha en {response.url} -----")
+                print("** ** ** " * 10)
+                pprint.pprint(self.item)
+                print("** ** ** " * 10)
+                input()
 
 
         else:

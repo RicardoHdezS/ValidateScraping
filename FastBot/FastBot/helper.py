@@ -97,12 +97,42 @@ def parse_format_date(response, publish_date, modified_date, UTC, JSON, STR, str
             print("Error al obtener el contenido xpath")
             return False, publish_date, modified_date
         else:
-            publish_parsed, modified_parsed = dateparser.parse(publish_date, settings=settings), dateparser.parse(modified_date, settings=settings)
-            valid = validate_date(publish_parsed)
-            if valid:
-                return True, publish_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"), modified_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if STR:
+
+                publish_parsed = parse_text_date(publish_date, str_format, settings)
+                modified_parsed = parse_text_date(modified_date, str_format, settings)
+
+                if publish_parsed:
+                    return True, publish_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"), modified_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                else:
+                    print("Error al analizar fechas en formato de texto")
+                    return False, publish_date, modified_date
             else:
-                return False, publish_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"), modified_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                publish_parsed, modified_parsed = dateparser.parse(publish_date, settings=settings), dateparser.parse(modified_date, settings=settings)
+                valid = validate_date(publish_parsed)
+                if valid:
+                    return True, publish_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"), modified_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+                else:
+                    return False, publish_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"), modified_parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def parse_text_date(text_date, str_format, settings):
+
+    parsed_date = dateparser.parse(text_date, languages=['es'])
+
+    if parsed_date:
+        return parsed_date
+
+    regex_formats = [r'\b(\d{1,2}/\d{1,2}/\d{4})\b']
+
+    for regex_format in regex_formats:
+        match = re.search(regex_format, text_date)
+        if match:
+            detected_date = match.group(1)
+            parsed_date = dateparser.parse(detected_date, date_formats=[str_format], settings=settings)
+            if parsed_date:
+                return parsed_date
+
+    return None
 
 def validate_date(web_note_date):
 
